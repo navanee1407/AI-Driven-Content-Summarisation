@@ -14,9 +14,18 @@ from PIL import Image
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DOCTR_PATH = PROJECT_ROOT / "DocTr"
 
-INPUT_PATH = PROJECT_ROOT / "preprocessing" / "paper_boundary.png"
+# All generated images are stored in output/
+OUTPUT_DIR = PROJECT_ROOT / "output"
+OUTPUT_DIR.mkdir(exist_ok=True)
+
+# Input comes from the previous preprocessing stage
+INPUT_PATH = OUTPUT_DIR / "paper_boundary.png"
+
+# IllTr model
 MODEL_PATH = DOCTR_PATH / "model_pretrained" / "illtr.pth"
-OUTPUT_PATH = PROJECT_ROOT / "preprocessing" / "illumination_corrected.png"
+
+# Final output
+OUTPUT_PATH = OUTPUT_DIR / "illumination_corrected.png"
 
 # Allow Python to import IllTr.py from the DocTr folder
 sys.path.insert(0, str(DOCTR_PATH))
