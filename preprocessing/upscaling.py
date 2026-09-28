@@ -7,7 +7,7 @@ input_path = "output/illumination_corrected.png"
 model_path = "preprocessing/models/FSRCNN_x2.pb"
 
 # Output image
-output_path = "preprocessing/ai_upscaled.png"
+output_path = "output/ai_upscaled.png"
 
 # Load image
 img = cv2.imread(input_path)

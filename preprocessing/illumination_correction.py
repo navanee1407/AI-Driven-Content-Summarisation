@@ -19,7 +19,7 @@ OUTPUT_DIR = PROJECT_ROOT / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 # Input comes from the previous preprocessing stage
-INPUT_PATH = OUTPUT_DIR / "paper_boundary.png"
+INPUT_PATH = OUTPUT_DIR / "tight_cropped.png"
 
 # IllTr model
 MODEL_PATH = DOCTR_PATH / "model_pretrained" / "illtr.pth"
