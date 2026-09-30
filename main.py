@@ -1,27 +1,64 @@
-import cv2
-import numpy as np
+from pathlib import Path
 
-def flatten_channel(ch, ksize=51):
-    """ksize should be larger than the thickest text stroke."""
-    ksize |= 1  # must be odd
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksize, ksize))
-    # Closing removes dark text, leaving only the background/illumination
-    bg = cv2.morphologyEx(ch, cv2.MORPH_CLOSE, kernel)
-    bg = cv2.medianBlur(bg, ksize)
-    bg = cv2.GaussianBlur(bg, (0, 0), ksize / 3)
-    # Divide out the illumination -> background becomes ~white
-    return cv2.divide(ch, bg, scale=255)
+from upload_validator import validate_upload
+from preprocessing.orientation import correct_orientation
 
-img = cv2.imread(r"D:\Coding\Reverse Engineering Project\image.jpeg")
 
-# Grayscale
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-cv2.imwrite("corrected_gray.png", flatten_channel(gray))
+PROJECT_ROOT = Path(__file__).resolve().parent
+INPUT_IMAGE = PROJECT_ROOT / "image.jpeg"
 
-# Colour (also removes colour casts)
-corrected = cv2.merge([flatten_channel(c) for c in cv2.split(img)])
-cv2.imwrite("corrected_color.png", corrected)
 
-cv2.imshow("Corrected Color Image", corrected)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+def main():
+    print("=" * 60)
+    print("AI-DRIVEN CONTENT SUMMARISATION")
+    print("=" * 60)
+
+    print(f"\nInput file: {INPUT_IMAGE}")
+
+    # Step 1: Upload validation
+    print("\n[1/3] Running upload validator...")
+
+    result = validate_upload(INPUT_IMAGE)
+
+    if not result.valid:
+        print("\nUPLOAD REJECTED")
+        print(f"Reason: {result.message}")
+        print("\nProcessing stopped.")
+        return
+
+    print("\nUPLOAD VALIDATED")
+    print(result.message)
+
+    print("\nValidator metrics:")
+
+    for key, value in result.metrics.items():
+        print(f"  {key}: {value}")
+
+    validated_image = result.image
+
+    print("\nValidated image ready for preprocessing.")
+    print(f"Image shape: {validated_image.shape}")
+    print(f"Image dtype: {validated_image.dtype}")
+
+    # Step 2: Orientation correction
+    print("\n[2/3] Running orientation correction...")
+
+    oriented_image = correct_orientation(validated_image)
+
+    print("\nOrientation correction completed.")
+    print(f"Oriented image shape: {oriented_image.shape}")
+
+    # Step 3: Remaining stages
+    print("\n[3/3] Remaining preprocessing:")
+
+    print("  → GeoTr")
+    print("  → IllTr")
+    print("  → Upscaling")
+    print("  → OCR")
+    print("  → English summarisation")
+
+    print("\nGeoTr and later stages are not connected yet.")
+
+
+if __name__ == "__main__":
+    main()

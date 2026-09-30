@@ -1,114 +1,172 @@
 from paddleocr import DocImgOrientationClassification
 import cv2
 from pathlib import Path
-
+import tempfile
 
 # --------------------------------------------------
+
 # Project paths
+
 # --------------------------------------------------
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Original input image is in the project root
-INPUT_PATH = PROJECT_ROOT / "image.jpeg"
-
-# All generated images go into output/
 OUTPUT_DIR = PROJECT_ROOT / "output"
 OUTPUT_PATH = OUTPUT_DIR / "oriented.jpeg"
 
-# Create output folder if it doesn't exist
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-
 # --------------------------------------------------
+
 # Load orientation model
+
 # --------------------------------------------------
 
 print("Loading orientation model...")
 
 model = DocImgOrientationClassification(
-    model_name="PP-LCNet_x1_0_doc_ori",
-    device="cpu"
+model_name="PP-LCNet_x1_0_doc_ori",
+device="cpu"
 )
 
 print("Model loaded successfully!")
 
-
-# --------------------------------------------------
-# Predict orientation
 # --------------------------------------------------
 
-output = model.predict(
-    str(INPUT_PATH),
-    batch_size=1
-)
-
-# Get the first result
-res = output[0]
-
-# Extract orientation information
-orientation = int(
-    res.json["res"]["class_ids"][0][0]
-)
-
-confidence = float(
-    res.json["res"]["scores"][0]
-)
-
-print("Detected orientation:", orientation)
-print("Confidence:", confidence)
-
+# Orientation function
 
 # --------------------------------------------------
-# Read image
-# --------------------------------------------------
 
-image = cv2.imread(str(INPUT_PATH))
+def correct_orientation(image):
+    """
+    Detect and correct document orientation.
 
-if image is None:
-    raise FileNotFoundError(
-        f"Could not read input image: {INPUT_PATH}"
+    ```
+    Parameters
+    ----------
+    image : numpy.ndarray
+        BGR image returned by the upload validator.
+
+    Returns
+    -------
+    numpy.ndarray
+        Orientation-corrected BGR image.
+    """
+
+    if image is None:
+        raise ValueError("Input image is None.")
+
+    if len(image.shape) != 3:
+        raise ValueError(
+            f"Expected a color image with 3 dimensions, got: {image.shape}"
     )
 
+    # --------------------------------------------------
+    # PaddleOCR orientation model currently receives
+    # the image through a temporary file.
+    # --------------------------------------------------
 
-# --------------------------------------------------
-# Correct orientation
-# --------------------------------------------------
+    with tempfile.NamedTemporaryFile(
+        suffix=".jpeg",
+        delete=False
+    ) as temp_file:
 
-if orientation == 0:
-    corrected = image
+        temp_path = Path(temp_file.name)
 
-elif orientation == 1:
-    corrected = cv2.rotate(
-        image,
-        cv2.ROTATE_90_COUNTERCLOCKWISE
-    )
+    try:
+        # Save validated BGR image temporarily
+        success = cv2.imwrite(
+            str(temp_path),
+            image
+        )
 
-elif orientation == 2:
-    corrected = cv2.rotate(
-        image,
-        cv2.ROTATE_180
-    )
+        if not success:
+            raise RuntimeError(
+                "Could not create temporary image for orientation detection."
+            )
 
-elif orientation == 3:
-    corrected = cv2.rotate(
-        image,
-        cv2.ROTATE_90_CLOCKWISE
-    )
+        # --------------------------------------------------
+        # Predict orientation
+        # --------------------------------------------------
 
-else:
-    raise ValueError(
-        f"Unknown orientation class: {orientation}"
-    )
+        output = model.predict(
+            str(temp_path),
+            batch_size=1
+        )
 
+        res = output[0]
 
-# --------------------------------------------------
-# Save corrected image
-# --------------------------------------------------
+        orientation = int(
+            res.json["res"]["class_ids"][0][0]
+        )
 
-cv2.imwrite(
-    str(OUTPUT_PATH),
-    corrected
-)
+        confidence = float(
+            res.json["res"]["scores"][0]
+        )
 
-print("Corrected image saved as:", OUTPUT_PATH)
+        print("Detected orientation:", orientation)
+        print("Confidence:", confidence)
+
+        # --------------------------------------------------
+        # Correct orientation
+        # --------------------------------------------------
+
+        if orientation == 0:
+
+            corrected = image
+
+        elif orientation == 1:
+
+            corrected = cv2.rotate(
+                image,
+                cv2.ROTATE_90_COUNTERCLOCKWISE
+            )
+
+        elif orientation == 2:
+
+            corrected = cv2.rotate(
+                image,
+                cv2.ROTATE_180
+            )
+
+        elif orientation == 3:
+
+            corrected = cv2.rotate(
+                image,
+                cv2.ROTATE_90_CLOCKWISE
+            )
+
+        else:
+            raise ValueError(
+                f"Unknown orientation class: {orientation}"
+            )
+
+        # --------------------------------------------------
+        # Save output
+        # --------------------------------------------------
+
+        success = cv2.imwrite(
+            str(OUTPUT_PATH),
+            corrected
+        )
+
+        if not success:
+            raise RuntimeError(
+                f"Could not save oriented image to: {OUTPUT_PATH}"
+            )
+
+        print(
+            "Corrected image saved as:",
+            OUTPUT_PATH
+        )
+
+        return corrected
+
+    finally:
+
+        # Remove temporary image
+        try:
+            temp_path.unlink()
+        except FileNotFoundError:
+            pass
+
